@@ -20,7 +20,9 @@ If you are new to neural networks, this ["Dummy's Guide"](https://x.com/hooeem/s
 
 ## Quick start
 
-**Requirements:** A single Linux GPU supported by PyTorch (NVIDIA CUDA or AMD ROCm/HIP), Python 3.10+, [uv](https://docs.astral.sh/uv/).
+**Requirements:** A single GPU (NVIDIA or AMD ROCm), Python 3.10+, [uv](https://docs.astral.sh/uv/).
+
+> **AMD ROCm support:** The training script automatically falls back to PyTorch's native SDPA (which provides Flash Attention 2) when Flash Attention 3 is unavailable. Install [PyTorch for ROCm](https://pytorch.org/get-started/locally/) and run as normal. Set `AUTORESEARCH_PEAK_FLOPS` env var for accurate MFU reporting on your hardware (defaults to MI300X or 7900 XTX if detected).
 
 ```bash
 

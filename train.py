@@ -6,6 +6,7 @@ Usage: uv run train.py
 
 import os
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+os.environ.setdefault("TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL", "1")
 os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
 
 import gc
@@ -43,7 +44,7 @@ DEVICE_LABEL = "ROCm/HIP" if IS_ROCM else "CUDA"
 
 
 def should_use_torch_compile():
-    requested = os.environ.get("AUTORESEARCH_COMPILE", "auto").lower()
+    requested = os.environ.get("AUTORESEARCH_COMPILE", "on").lower()
     if requested in {"0", "false", "off"}:
         return False
     if requested in {"1", "true", "on"}:
@@ -55,12 +56,23 @@ USE_TORCH_COMPILE = should_use_torch_compile()
 
 
 def resolve_peak_flops():
-    peak_flops = os.environ.get("AUTORESEARCH_PEAK_FLOPS")
+    peak_flops = os.environ.get("AUTORESEARCH_PEAK_FLOPS") or os.environ.get("GPU_BF16_PEAK_FLOPS")
     if peak_flops is not None:
         return float(peak_flops)
     if not IS_ROCM and torch.cuda.get_device_capability(DEVICE) == (9, 0):
         return 989.5e12  # H100 BF16 peak
-    return None
+    if IS_ROCM:
+        try:
+            device_name = torch.cuda.get_device_name(DEVICE).lower()
+            if "gfx942" in device_name or "mi300" in device_name:
+                return 1307e12 # MI300X BF16 peak
+            if "gfx90a" in device_name or "mi200" in device_name or "mi210" in device_name:
+                return 181e12 # MI210 BF16 peak
+            if "gfx1100" in device_name or "7900 xtx" in device_name:
+                return 122.8e12 # RX 7900 XTX BF16 peak
+        except Exception:
+            pass
+    return 122.8e12  # Default to RX 7900 XTX peak flops for this project
 
 
 def maybe_synchronize():
@@ -138,9 +150,9 @@ def get_attention_interface():
                 raise RuntimeError(f"Requested Flash Attention backend, but initialization failed: {exc}") from exc
             print(f"Attention backend: Flash Attention unavailable ({exc}); falling back to PyTorch SDPA")
     elif requested in {"flash", "fa3"}:
-        raise RuntimeError("Flash Attention was explicitly requested, but the bundled kernel path is NVIDIA-only.")
+        raise RuntimeError("Flash Attention was explicitly requested, but the bundled kernel path is NVIDIA-only. Using SDPA is recommended for ROCm.")
 
-    print("Attention backend: PyTorch scaled_dot_product_attention")
+    print("Attention backend: PyTorch scaled_dot_product_attention (Flash Attention enabled for ROCm)")
     return SimpleNamespace(flash_attn_interface=SdpaAttentionInterface)
 
 
@@ -556,7 +568,7 @@ class MuonAdamW(torch.optim.Optimizer):
 # Model architecture
 ASPECT_RATIO = 64       # model_dim = depth * ASPECT_RATIO
 HEAD_DIM = 128          # target head dimension for attention
-WINDOW_PATTERN = os.environ.get("AUTORESEARCH_WINDOW_PATTERN", "SSSL") # sliding window pattern: L=full, S=half context
+WINDOW_PATTERN = os.environ.get("AUTORESEARCH_WINDOW_PATTERN", "L") # sliding window pattern: L=full, S=half context
 
 # Optimization
 TOTAL_BATCH_SIZE = int(os.environ.get("AUTORESEARCH_TOTAL_BATCH_SIZE", 2**19)) # ~524K tokens per optimizer step
