@@ -20,7 +20,7 @@ If you are new to neural networks, this ["Dummy's Guide"](https://x.com/hooeem/s
 
 ## Quick start
 
-**Requirements:** A single NVIDIA GPU (tested on H100), Python 3.10+, [uv](https://docs.astral.sh/uv/).
+**Requirements:** A single Linux GPU supported by PyTorch (NVIDIA CUDA or AMD ROCm/HIP), Python 3.10+, [uv](https://docs.astral.sh/uv/).
 
 ```bash
 
@@ -28,6 +28,12 @@ If you are new to neural networks, this ["Dummy's Guide"](https://x.com/hooeem/s
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # 2. Install dependencies
+# NVIDIA / CUDA 12.8
+uv pip install --index-url https://download.pytorch.org/whl/cu128 torch==2.9.1
+uv sync
+
+# AMD / ROCm 6.4
+uv pip install --index-url https://download.pytorch.org/whl/rocm6.4 torch==2.9.1
 uv sync
 
 # 3. Download data and train tokenizer (one-time, ~2 min)
@@ -38,6 +44,8 @@ uv run train.py
 ```
 
 If the above commands all work ok, your setup is working and you can go into autonomous research mode.
+
+If you already have a separate virtualenv activated, use `uv run --active ...` or uv will ignore it and use the project's `.venv` instead.
 
 ## Running the agent
 
@@ -66,7 +74,9 @@ pyproject.toml  — dependencies
 
 ## Platform support
 
-This code currently requires that you have a single NVIDIA GPU. In principle it is quite possible to support CPU, MPS and other platforms but this would also bloat the code. I'm not 100% sure that I want to take this on personally right now. People can reference (or have their agents reference) the full/parent nanochat repository that has wider platform support and shows the various solutions (e.g. a Flash Attention 3 kernels fallback implementation, generic device support, autodetection, etc.), feel free to create forks or discussions for other platforms and I'm happy to link to them here in the README in some new notable forks section or etc.
+This repo now supports both NVIDIA CUDA and AMD ROCm/HIP through PyTorch. The fast path still prefers the external Flash Attention kernel on NVIDIA, but ROCm automatically falls back to PyTorch's built-in `scaled_dot_product_attention` because the bundled Flash Attention path is NVIDIA-specific. The code still assumes a single GPU and does not target CPU or MPS.
+
+If you want to force the portable attention path on any backend, set `AUTORESEARCH_ATTN=sdpa` before running `train.py`. ROCm also disables `torch.compile` by default for portability; override that with `AUTORESEARCH_COMPILE=on` if your stack is stable enough. If you know your hardware peak FLOPS and want MFU numbers instead of `n/a`, set `AUTORESEARCH_PEAK_FLOPS` to that value.
 
 Seeing as there seems to be a lot of interest in tinkering with autoresearch on much smaller compute platforms than an H100, a few extra words. If you're going to try running autoresearch on smaller computers (Macbooks etc.), I'd recommend one of the forks below. On top of this, here are some recommendations for how to tune the defaults for much smaller models for aspiring forks:
 
