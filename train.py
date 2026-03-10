@@ -8,6 +8,7 @@ import os
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 os.environ.setdefault("TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL", "1")
 os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+os.environ["LIBDRM_DATA_DIR"] = "/usr/share/libdrm"
 
 import gc
 import time
@@ -579,8 +580,8 @@ SCALAR_LR = 0.5         # learning rate for per-layer scalars (Adam)
 WEIGHT_DECAY = 0.2      # cautious weight decay for Muon
 ADAM_BETAS = (0.8, 0.95) # Adam beta1, beta2
 WARMUP_RATIO = 0.0      # fraction of time budget for LR warmup
-WARMDOWN_RATIO = 0.5    # fraction of time budget for LR warmdown
-FINAL_LR_FRAC = 0.0     # final LR as fraction of initial
+WARMDOWN_RATIO = 0.6    # fraction of time budget for LR warmdown
+FINAL_LR_FRAC = 0.1     # final LR as fraction of initial
 
 # Model size
 DEPTH = int(os.environ.get("AUTORESEARCH_DEPTH", 8))               # number of transformer layers
