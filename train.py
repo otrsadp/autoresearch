@@ -10,6 +10,7 @@ os.environ.setdefault("TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL", "1")
 os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
 
 import gc
+import math
 import time
 from dataclasses import dataclass, asdict
 from types import SimpleNamespace
@@ -706,8 +707,8 @@ while True:
 
     train_loss_f = train_loss.item()
 
-    # Fast fail: abort if loss is exploding
-    if train_loss_f > 100:
+    # Fast fail: abort if loss is exploding or NaN
+    if math.isnan(train_loss_f) or train_loss_f > 100:
         print("FAIL")
         exit(1)
 
