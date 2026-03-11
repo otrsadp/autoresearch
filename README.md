@@ -1,4 +1,4 @@
-# autoresearch
+# autoresearch - with AMD ROCm support
 
 ![teaser](progress.png)
 
